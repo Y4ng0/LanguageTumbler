@@ -47,8 +47,11 @@ def random_translation_loop(text, rounds):
             text = translated_text
             from_language = target_language
             # Append each translation to the intermediate text box
-            intermediate_textbox.insert(tk.END, f"Round {i + 1} ({target_language}): {text}\n\n")
+            intermediate_textbox.insert(tk.END, f"Round {i + 1} ({target_language}): {text}\n")
+            retranslation = translate_text(text, 'en', from_language)
+            intermediate_textbox.insert(tk.END, f"Round {i} in English: {retranslation}\n\n")
             intermediate_textbox.see(tk.END)  # Scroll to the latest translation
+
         else:
             return "Translation error occurred."
 
@@ -96,7 +99,7 @@ def start_translation():
 
 # Setting up the main Tkinter window
 root = tk.Tk()
-root.title("LibreTranslate Translation Looper")
+root.title("LibreTranslate LanguageTumbler")
 
 # Input text field
 tk.Label(root, text="Enter Text to Translate:").pack()
