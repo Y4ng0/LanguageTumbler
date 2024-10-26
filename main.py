@@ -8,7 +8,7 @@ LIBRE_TRANSLATE_URL = "http://localhost:5000"
 
 
 def get_languages():
-    """Retrieve supported languages from LibreTranslate API."""
+    """Retrieve supported languages from LibreTranslate API with necessary headers."""
     url = f"{LIBRE_TRANSLATE_URL}/languages"
     headers = {
         "Accept": "application/json"
@@ -17,7 +17,9 @@ def get_languages():
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         languages = response.json()
-        return [lang['code'] for lang in languages]
+        lang_dict = {language['code']: {'name':language['name'], 'target':language['targets']} for language in languages}
+        return lang_dict
+        #return [lang['code'] for lang in languages]
     except requests.RequestException as e:
         messagebox.showwarning("API Error", f"Failed to retrieve languages: {e}")
         return []
@@ -26,35 +28,49 @@ def get_languages():
 def random_translation_loop(text, rounds):
     """Translate text to random languages using LibreTranslate API and back to original language."""
     original_text = text
-    language_list = get_languages()
-    if not language_list:
+
+    lang_dict = get_languages()
+
+    if not lang_dict:
         return "Error retrieving languages."
 
-    last_language = 'en'
+    language_list = lang_dict.keys()
+
+    # Clear intermediate translations display
+    intermediate_textbox.delete("1.0", tk.END)
+
+    from_language = "en"
     for i in range(rounds):
-        target_language = random.choice([lang for lang in language_list if lang != 'en'])
-        translated_text = translate_text(text, target_language, last_language)
+        target_language = random.choice(lang_dict[from_language]['target'])
+        translated_text = translate_text(text, target_language, from_language)
         if translated_text:
             text = translated_text
-            last_language = target_language
+            from_language = target_language
+            # Append each translation to the intermediate text box
+            intermediate_textbox.insert(tk.END, f"Round {i + 1} ({target_language}): {text}\n\n")
+            intermediate_textbox.see(tk.END)  # Scroll to the latest translation
         else:
             return "Translation error occurred."
 
     # Translate back to original language
-    return translate_text(text, "en", last_language)
+    final_text = translate_text(text, "en", from_language)
+    return final_text
 
 
-def translate_text(text, target_language, last_language):
+def translate_text(text, target_language, from_language="en"):
     """Translate text to a specified target language using LibreTranslate API."""
     url = f"{LIBRE_TRANSLATE_URL}/translate"
     data = {
         "q": text,
-        "source": last_language,
+        "source": from_language,
         "target": target_language,
         "format": "text"
     }
+    headers = {
+        "Accept": "application/json"
+    }
     try:
-        response = requests.post(url, data=data)
+        response = requests.post(url, headers=headers, data=data)
         response.raise_for_status()
         return response.json()['translatedText']
     except requests.RequestException as e:
@@ -95,6 +111,11 @@ rounds_entry.pack()
 # Start Translation button
 translate_button = tk.Button(root, text="Start Translation", command=start_translation)
 translate_button.pack(pady=5)
+
+# Intermediate translations field
+tk.Label(root, text="Intermediate Translations:").pack()
+intermediate_textbox = tk.Text(root, height=10, width=50, wrap="word")
+intermediate_textbox.pack()
 
 # Output text field
 tk.Label(root, text="Final Translated Text:").pack()
